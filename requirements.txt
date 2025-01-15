@@ -1,0 +1,4 @@
+Requests==2.32.3
+selenium==4.27.1
+tqdm==4.66.5
+webdriver_manager==4.0.2
