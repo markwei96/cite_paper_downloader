@@ -171,7 +171,7 @@ if __name__ == '__main__':
     
     with open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore') as f:
         f.write('title,authors,title_link,pdf_link,save_path\n')
-        f.write(',,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
+        f.write(',,,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
         for item in datass:
             f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]},{item[4]}\n')
 
@@ -241,7 +241,7 @@ if __name__ == '__main__':
     
         with open(f'./{paper_namex}_full_report.csv','w') as f:
             f.write('title,title_link,pdf_link,save_path\n')
-            f.write(',,,for save_path 1-download path set in code 2-system default download path\n')
+            f.write(',,,,for save_path 1-download path set in code 2-system default download path\n')
             for item in datass:
                 f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]}\n')
 
