@@ -12,11 +12,11 @@ import argparse
 import os
 import requests
 
-from web_ops import get_authors
+from web_ops import get_authors,get_random_ua,decode_cite_text
 
 def setWebDriver(save_path):
-    service=Service(ChromeDriverManager().install())
-    chrome_options = Options()
+    service=Service('./web_driver/msedgedriver.exe')
+    options = webdriver.EdgeOptions()
     prefs = {
         "download.default_directory": save_path,
         "download.prompt_for_download": False,
@@ -25,7 +25,7 @@ def setWebDriver(save_path):
     }
 
     headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "User-Agent": get_random_ua(),
             # "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
             "accept-language": "zh-CN,zh;q=0.9",
             "accept-encoding": "gzip, deflate, br, zstd",
@@ -39,10 +39,10 @@ def setWebDriver(save_path):
         capability_key = 'phantomjs.page.customHeaders.{}'.format(key)
         webdriver.DesiredCapabilities.CHROME[capability_key] = value
 
-    chrome_options.add_experimental_option("prefs", prefs)
-    chrome_options.add_argument('--ignore-certificate-errors')
+    options.add_experimental_option("prefs", prefs)
+    options.add_argument('--ignore-certificate-errors')
 
-    driver=webdriver.Chrome(options=chrome_options,service=service)
+    driver=webdriver.Edge(options=options,service=service)
     driver.set_window_size(width=800,height=1000)
     return driver
 
@@ -61,10 +61,13 @@ if __name__ == '__main__':
     parser.add_argument('-dp', '--is_download_pdf', type=bool, default=False, help='是否下载PDF')
     parser.add_argument('-m', '--max_wait', type=int, default=5, help='最大等待时间')
 
+    parser.add_argument('-b', '--debug', type=bool, default=False, help='Debug mode')
+
     args = parser.parse_args()
 
     paper_name = args.paper_name
     base_dir = args.base_dir
+    is_debug = args.debug
 
     if base_dir[-1] == '/':
         base_dir = base_dir[:-1]
@@ -101,7 +104,7 @@ if __name__ == '__main__':
         if tag == 'gs_ri':
             title = item.find_element(By.XPATH, f".//div[1]/h3").text
         else:
-            title = item.find_element(By.XPATH, f".//div[2]/h3").text
+            title = item.find_element(By.XPATH, f".//div[2]/h3").text      
         if paper_name.lower() in  title.lower():
             if tag == 'gs_ri':
                 cite_btn = item.find_element(By.XPATH, f".//div[1]/div[5]/a[3]")
@@ -121,59 +124,109 @@ if __name__ == '__main__':
 
     btn_next = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="gs_nm"]/button[2]')))
     items = driver.find_elements(By.CLASS_NAME, 'gs_or')
+    cite_btns = driver.find_elements(By.CLASS_NAME,'gs_or_cit')
     datass = []
 
+    file = open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore')
+    file.write('title,authors,title_link,pdf_link,save_path\n')
+    file.write(',,,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
+    file.close()
+
+    page = 0
+    auth_get_count = 0
+    wait_count = 1
     while 1:
-        
-        while 1:
-            try:
-                bot_check = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.ID,'gs_captcha_ccl')))
-                input("Please complete the bot check and press enter to continue...")
+            for i in range(len(items)):
+                tag = items[i].find_element(By.XPATH,'.//div[1]').get_attribute('class')
+                if tag == 'gs_ri':
+                    title = items[i].find_element(By.XPATH, f".//div[1]/h3").text
+                    try:
+                        paper_id = items[i].find_element(By.XPATH, f".//div[1]/h3/a").get_attribute("id")
+                    except:
+                        paper_id = items[i].find_element(By.XPATH, f".//div[1]/h3/span[2]").get_attribute("id")
+                    try:
+                        title_link = items[i].find_element(By.XPATH, f".//div[1]/h3/a").get_attribute("href")
+                    except:
+                        title_link = ''
+                    pdf_link = ''
+                else:
+                    title = items[i].find_element(By.XPATH, f".//div[2]/h3").text
+                    try:
+                        paper_id = items[i].find_element(By.XPATH, f".//div[2]/h3/a").get_attribute("id")
+                    except:
+                        paper_id = items[i].find_element(By.XPATH, f".//div[2]/h3/span[2]").get_attribute("id")
+                    try:
+                        title_link = items[i].find_element(By.XPATH, f".//div[2]/h3/a").get_attribute("href")
+                    except:
+                        title_link = ''
+                    pdf_link = items[i].find_element(By.XPATH, f".//div[1]/div/div/a").get_attribute("href")
 
-            except:
-                break
-
-        for i in range(len(items)):
-            tag = items[i].find_element(By.XPATH,'.//div[1]').get_attribute('class')
-            if tag == 'gs_ri':
-                title = items[i].find_element(By.XPATH, f".//div[1]/h3").text
+                # authors = []
+                authors = get_authors(paper_id,page,i,is_debug)
+                time.sleep(random.randint(3,8))
+                if len(authors) > 0:
+                    if authors[0] == 'bot':
+                        print('Get bot check')
+                        if page == 0:
+                            id = f'{i}'
+                        else:
+                            id = f'{page}{i}'
+                        url = f'https://scholar.google.com/scholar?q=info:{paper_id}:scholar.google.com/&output=cite&scirp={id}&hl=en'
+                        driver.get(url)
+                        input("Please complete the bot check and press enter to continue...")
+                        print(f'To avoid bot check, will wait for {wait_count} minutes')
+                        time.sleep(wait_count*60)
+                        wait_count = wait_count*2
+                        # This part need a return code to make driver back to the previous page
+                        # very important!!!
+                # cite_btns[i].click()
+                # time.sleep(1)
+                # bx = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH,'//*[@id="gs_citi"]/a[1]')))
+                # bx.click()
+                # bx = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH,'/html/body/pre')))
+                # authors = decode_cite_text(bx.text)
+                # driver.back()
+                # close_btn = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID,'gs_cit-x')))
+                # close_btn.click()
+                datass.append([title,';'.join(authors),title_link, pdf_link,0])
+                with open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore') as f:
+                    tex = f'{title.replace(',','_')},{';'.join(authors)},{title_link},{pdf_link},0'
+                    f.write(f'{tex}\n')
+                if is_debug:
+                    print(tex)
+                    with open('./debug.txt','a',errors='ignore') as f:
+                        f.write(f'{title};{paper_id};{page};{i}\n')
+                # time.sleep(random.randint(1, 5))
+                
+            if btn_next.get_attribute("disabled") == None:
+                time.sleep(random.randint(5, 20))
+                btn_next.click()
+                page+=1
                 try:
-                    paper_id = items[i].find_element(By.XPATH, f".//div[1]/h3/a").get_attribute("id")
+                    btn_next = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="gs_nm"]/button[2]')))
                 except:
-                    paper_id = items[i].find_element(By.XPATH, f".//div[1]/h3/span[2]").get_attribute("id")
-                try:
-                    title_link = items[i].find_element(By.XPATH, f".//div[1]/h3/a").get_attribute("href")
-                except:
-                    title_link = ''
-                pdf_link = ''
+                    bot_block = driver.find_elements(By.ID, 'gs_captcha_ccl')
+                    if bot_block:
+                        input("Please complete the bot check and press enter to continue...")
+                        input(f"Please check current page is {page},if not please manual move to this page and press enter to continue...")
+                        btn_next = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="gs_nm"]/button[2]')))
+                    ban_block = driver.find_elements(By.XPATH, '/html/body/div[2]/h1')
+                    if ban_block:
+                        if ban_block[0].text == 'We\'re sorry...':
+                            print('Sorry we have been banned by google,pleasee change another ip address and try again')
+                            print(f'Sotp in page {page}')
+                            print(f'cite paper info is ready in ./{paper_namex}_full_report.csv')
+                            break
+                items = driver.find_elements(By.CLASS_NAME, 'gs_or')
             else:
-                title = items[i].find_element(By.XPATH, f".//div[2]/h3").text
-                try:
-                    paper_id = items[i].find_element(By.XPATH, f".//div[2]/h3/a").get_attribute("id")
-                except:
-                    paper_id = items[i].find_element(By.XPATH, f".//div[2]/h3/span[2]").get_attribute("id")
-                try:
-                    title_link = items[i].find_element(By.XPATH, f".//div[2]/h3/a").get_attribute("href")
-                except:
-                    title_link = ''
-                pdf_link = items[i].find_element(By.XPATH, f".//div[1]/div/div/a").get_attribute("href")
-
-            authors = get_authors(paper_id)
-            datass.append([title,';'.join(authors),title_link, pdf_link,0])
-            # print(title, pdf_link)
-        if btn_next.get_attribute("disabled") == None:
-            time.sleep(random.randint(1, max_wait))
-            btn_next.click()
-            btn_next = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="gs_nm"]/button[2]')))
-            items = driver.find_elements(By.CLASS_NAME, 'gs_or')
-        else:
-            break
+                break
+    # file.close()
     
-    with open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore') as f:
-        f.write('title,authors,title_link,pdf_link,save_path\n')
-        f.write(',,,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
-        for item in datass:
-            f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]},{item[4]}\n')
+    # with open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore') as f:
+    #     f.write('title,authors,title_link,pdf_link,save_path\n')
+    #     f.write(',,,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
+    #     for item in datass:
+    #         f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]},{item[4]}\n')
 
     print(f'cite paper info is ready in ./{paper_namex}_full_report.csv')
 

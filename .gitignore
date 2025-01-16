@@ -1,2 +1,4 @@
 igs/
 __pycache__/
+test*
+debug*
