@@ -59,7 +59,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--paper_name', type=str, required=True,help='论文名称')
     parser.add_argument('-d', '--base_dir', type=str,default='./', help='保存路径')
     parser.add_argument('-dp', '--is_download_pdf', type=bool, default=False, help='是否下载PDF')
-    parser.add_argument('-m', '--max_wait', type=int, default=10, help='最大等待时间')
+    parser.add_argument('-m', '--max_wait', type=int, default=5, help='最大等待时间')
 
     args = parser.parse_args()
 
@@ -102,7 +102,7 @@ if __name__ == '__main__':
             title = item.find_element(By.XPATH, f".//div[1]/h3").text
         else:
             title = item.find_element(By.XPATH, f".//div[2]/h3").text
-        if title.lower() == paper_name.lower():
+        if paper_name.lower() in  title.lower():
             if tag == 'gs_ri':
                 cite_btn = item.find_element(By.XPATH, f".//div[1]/div[5]/a[3]")
             else:
