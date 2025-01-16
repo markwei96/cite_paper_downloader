@@ -12,6 +12,8 @@ import argparse
 import os
 import requests
 
+from web_ops import get_authors
+
 def setWebDriver(save_path):
     service=Service(ChromeDriverManager().install())
     chrome_options = Options()
@@ -56,6 +58,8 @@ if __name__ == '__main__':
 
     parser.add_argument('-p', '--paper_name', type=str, required=True,help='论文名称')
     parser.add_argument('-d', '--base_dir', type=str,default='./', help='保存路径')
+    parser.add_argument('-dp', '--is_download_pdf', type=bool, default=False, help='是否下载PDF')
+    parser.add_argument('-m', '--max_wait', type=int, default=10, help='最大等待时间')
 
     args = parser.parse_args()
 
@@ -65,7 +69,8 @@ if __name__ == '__main__':
     if base_dir[-1] == '/':
         base_dir = base_dir[:-1]
 
-    max_wait = 10
+    max_wait = args.max_wait
+    is_download_pdf = args.is_download_pdf
 
     paper_namex = paper_name.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
     save_path = f'{base_dir}/{paper_namex}'
@@ -82,7 +87,7 @@ if __name__ == '__main__':
 
     while 1:
         try:
-            bot_check = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID,'gs_captcha_ccl')))
+            bot_check = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.ID,'gs_captcha_ccl')))
             input("Please complete the bot check and press enter to continue...")
 
         except:
@@ -108,7 +113,7 @@ if __name__ == '__main__':
     
     while 1:
         try:
-            bot_check = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID,'gs_captcha_ccl')))
+            bot_check = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.ID,'gs_captcha_ccl')))
             input("Please complete the bot check and press enter to continue...")
 
         except:
@@ -122,7 +127,7 @@ if __name__ == '__main__':
         
         while 1:
             try:
-                bot_check = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID,'gs_captcha_ccl')))
+                bot_check = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.ID,'gs_captcha_ccl')))
                 input("Please complete the bot check and press enter to continue...")
 
             except:
@@ -133,6 +138,10 @@ if __name__ == '__main__':
             if tag == 'gs_ri':
                 title = items[i].find_element(By.XPATH, f".//div[1]/h3").text
                 try:
+                    paper_id = items[i].find_element(By.XPATH, f".//div[1]/h3/a").get_attribute("id")
+                except:
+                    paper_id = items[i].find_element(By.XPATH, f".//div[1]/h3/span[2]").get_attribute("id")
+                try:
                     title_link = items[i].find_element(By.XPATH, f".//div[1]/h3/a").get_attribute("href")
                 except:
                     title_link = ''
@@ -140,11 +149,17 @@ if __name__ == '__main__':
             else:
                 title = items[i].find_element(By.XPATH, f".//div[2]/h3").text
                 try:
+                    paper_id = items[i].find_element(By.XPATH, f".//div[2]/h3/a").get_attribute("id")
+                except:
+                    paper_id = items[i].find_element(By.XPATH, f".//div[2]/h3/span[2]").get_attribute("id")
+                try:
                     title_link = items[i].find_element(By.XPATH, f".//div[2]/h3/a").get_attribute("href")
                 except:
                     title_link = ''
                 pdf_link = items[i].find_element(By.XPATH, f".//div[1]/div/div/a").get_attribute("href")
-            datass.append([title,title_link, pdf_link,0])
+
+            authors = get_authors(paper_id)
+            datass.append([title,';'.join(authors),title_link, pdf_link,0])
             # print(title, pdf_link)
         if btn_next.get_attribute("disabled") == None:
             time.sleep(random.randint(1, max_wait))
@@ -154,78 +169,81 @@ if __name__ == '__main__':
         else:
             break
     
-    with open(f'./{paper_namex}_full_report.csv','w') as f:
-        f.write('title,title_link,pdf_link,save_path\n')
-        f.write(',,,for save_path 1-download path set in code 2-system default download path\n')
+    with open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore') as f:
+        f.write('title,authors,title_link,pdf_link,save_path\n')
+        f.write(',,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
         for item in datass:
-            f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]}\n')
+            f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]},{item[4]}\n')
 
     print(f'cite paper info is ready in ./{paper_namex}_full_report.csv')
-    
+
     download_to_system_download_floder = [0,[]]
     success = 0
-    for i in tqdm(range(len(datass)),desc='Downloading...'):
-        title = datass[i][0].replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
-        pdf_link = datass[i][2]
-        if pdf_link != '':
-            if pdf_link.endswith('.pdf'):
-                pdf_name = title + '.pdf'
-                pdf_path = os.path.join(save_path, pdf_name)
-                response = requests.get(pdf_link)
-                with open(pdf_path, 'wb') as f:
-                    f.write(response.content)
-                if os.path.getsize(pdf_path)/1024 > 35:
-                    datass[i][3] = 1
-                    success += 1
+    if is_download_pdf:
+        download_to_system_download_floder = [0,[]]
+        success = 0
+        for i in tqdm(range(len(datass)),desc='Downloading...'):
+            title = datass[i][0].replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
+            pdf_link = datass[i][2]
+            if pdf_link != '':
+                if pdf_link.endswith('.pdf'):
+                    pdf_name = title + '.pdf'
+                    pdf_path = os.path.join(save_path, pdf_name)
+                    response = requests.get(pdf_link)
+                    with open(pdf_path, 'wb') as f:
+                        f.write(response.content)
+                    if os.path.getsize(pdf_path)/1024 > 35:
+                        datass[i][-1] = 1
+                        success += 1
+                else:
+                    try:
+                        driver.get(pdf_link)
+                        items = driver.find_elements(By.TAG_NAME, 'iframe')
+                        if items:
+                            # pdf_frame_id = items[0].get_attribute('id')
+                            driver.switch_to.frame(0)
+                            download_btn = driver.find_element(By.ID,'download')
+                            download_btn.click()
+                            download_to_system_download_floder[0]+=1
+                            download_to_system_download_floder[1].append(pdf_name)
+                            datass[i][-1] = 2
+                            driver.switch_to.default_content()
+                    except:
+                        pass
             else:
-                try:
-                    driver.get(pdf_link)
-                    items = driver.find_elements(By.TAG_NAME, 'iframe')
-                    if items:
-                        # pdf_frame_id = items[0].get_attribute('id')
-                        driver.switch_to.frame(0)
-                        download_btn = driver.find_element(By.ID,'download')
-                        download_btn.click()
-                        download_to_system_download_floder[0]+=1
-                        download_to_system_download_floder[1].append(pdf_name)
-                        datass[i][3] = 2
-                        driver.switch_to.default_content()
-                except:
-                    pass
-        else:
-            url ='https://wellesu.com/'
-            driver.get(url)
-            search_text_box = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="request"]')))
-            search_text_box.send_keys(title)
-            search_btn = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="enter"]/button')))
-            search_btn.click()
-            try:
-                btn_download = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="buttons"]/button[2]')))
-                download_link = btn_download.get_attribute('onclick')[15:-15].replace('\\', '')
-                title = title.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
-                pdf_name = title + '.pdf'
-                pdf_path = os.path.join(save_path, pdf_name)
-                response = requests.get(download_link)
-                with open(pdf_path, 'wb') as f:
-                    f.write(response.content)
-                if os.path.getsize(pdf_path)/1024 > 35:
-                    datass[i][2] = download_link
-                    datass[i][3] = 1
-                    success += 1
-            except:
-                pass
-            finally:
+                url ='https://wellesu.com/'
                 driver.get(url)
                 search_text_box = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="request"]')))
-            
-    print(f'{success} papers are downloaded to {save_path}')
-    print(f'{download_to_system_download_floder[0]} papers are downloaded to system download floder')
-   
-    with open(f'./{paper_namex}_full_report.csv','w') as f:
-        f.write('title,title_link,pdf_link,save_path\n')
-        f.write(',,,for save_path 1-download path set in code 2-system default download path\n')
-        for item in datass:
-            f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]}\n')
+                search_text_box.send_keys(title)
+                search_btn = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="enter"]/button')))
+                search_btn.click()
+                try:
+                    btn_download = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="buttons"]/button[2]')))
+                    download_link = btn_download.get_attribute('onclick')[15:-15].replace('\\', '')
+                    title = title.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
+                    pdf_name = title + '.pdf'
+                    pdf_path = os.path.join(save_path, pdf_name)
+                    response = requests.get(download_link)
+                    with open(pdf_path, 'wb') as f:
+                        f.write(response.content)
+                    if os.path.getsize(pdf_path)/1024 > 35:
+                        datass[i][2] = download_link
+                        datass[i][-1] = 1
+                        success += 1
+                except:
+                    pass
+                finally:
+                    driver.get(url)
+                    search_text_box = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="request"]')))
+                
+        print(f'{success} papers are downloaded to {save_path}')
+        print(f'{download_to_system_download_floder[0]} papers are downloaded to system download floder')
+    
+        with open(f'./{paper_namex}_full_report.csv','w') as f:
+            f.write('title,title_link,pdf_link,save_path\n')
+            f.write(',,,for save_path 1-download path set in code 2-system default download path\n')
+            for item in datass:
+                f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]}\n')
 
     driver.quit()
     print(f'Find cite paper {len(datass)} , Download {success + download_to_system_download_floder[0]}' )
