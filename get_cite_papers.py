@@ -10,9 +10,24 @@ import random
 from tqdm import tqdm
 import argparse
 import os
-import requests
 
-from web_ops import get_authors,get_random_ua,decode_cite_text
+def get_random_ua():
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.54',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.38',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.2 Safari/605.1.15',
+        # 添加更多的用户代理,
+    ]
+    return random.choice(user_agents)
 
 def setWebDriver(save_path):
     service=Service('./web_driver/msedgedriver.exe')
@@ -60,6 +75,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--base_dir', type=str,default='./', help='保存路径')
     parser.add_argument('-dp', '--is_download_pdf', type=bool, default=False, help='是否下载PDF')
     parser.add_argument('-m', '--max_wait', type=int, default=5, help='最大等待时间')
+    parser.add_argument('-da', '--is_authors', type=bool, default=False, help='是否获取作者信息')
 
     parser.add_argument('-b', '--debug', type=bool, default=False, help='Debug mode')
 
@@ -68,6 +84,7 @@ if __name__ == '__main__':
     paper_name = args.paper_name
     base_dir = args.base_dir
     is_debug = args.debug
+    is_authors = args.is_authors
 
     if base_dir[-1] == '/':
         base_dir = base_dir[:-1]
@@ -161,37 +178,13 @@ if __name__ == '__main__':
                         title_link = ''
                     pdf_link = items[i].find_element(By.XPATH, f".//div[1]/div/div/a").get_attribute("href")
 
-                # authors = []
-                authors = get_authors(paper_id,page,i,is_debug)
-                time.sleep(random.randint(3,8))
-                if len(authors) > 0:
-                    if authors[0] == 'bot':
-                        print('Get bot check')
-                        if page == 0:
-                            id = f'{i}'
-                        else:
-                            id = f'{page}{i}'
-                        url = f'https://scholar.google.com/scholar?q=info:{paper_id}:scholar.google.com/&output=cite&scirp={id}&hl=en'
-                        driver.get(url)
-                        input("Please complete the bot check and press enter to continue...")
-                        print(f'To avoid bot check, will wait for {wait_count} minutes')
-                        time.sleep(wait_count*60)
-                        wait_count = wait_count*2
-                        # This part need a return code to make driver back to the previous page
-                        # very important!!!
-                # cite_btns[i].click()
-                # time.sleep(1)
-                # bx = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH,'//*[@id="gs_citi"]/a[1]')))
-                # bx.click()
-                # bx = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH,'/html/body/pre')))
-                # authors = decode_cite_text(bx.text)
-                # driver.back()
-                # close_btn = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID,'gs_cit-x')))
-                # close_btn.click()
-                datass.append([title,';'.join(authors),title_link, pdf_link,0])
-                with open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore') as f:
-                    tex = f'{title.replace(',','_')},{';'.join(authors)},{title_link},{pdf_link},0'
+                
+                datass.append([title,[],title_link, pdf_link,0])
+                with open(f'./{paper_namex}_full_report.csv','a',encoding='utf-8',errors='ignore') as f:
+                    tex = f'{title.replace(',','_')},,{title_link},{pdf_link},0'
                     f.write(f'{tex}\n')
+                with open(f'./{paper_namex}_authors_infos.csv','a',encoding='utf-8',errors='ignore') as f:
+                    f.write(f'{title};{paper_id};{page};{i}\n')
                 if is_debug:
                     print(tex)
                     with open('./debug.txt','a',errors='ignore') as f:
@@ -220,86 +213,10 @@ if __name__ == '__main__':
                 items = driver.find_elements(By.CLASS_NAME, 'gs_or')
             else:
                 break
-    # file.close()
-    
-    # with open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore') as f:
-    #     f.write('title,authors,title_link,pdf_link,save_path\n')
-    #     f.write(',,,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
-    #     for item in datass:
-    #         f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]},{item[4]}\n')
-
     print(f'cite paper info is ready in ./{paper_namex}_full_report.csv')
 
-    download_to_system_download_floder = [0,[]]
-    success = 0
-    if is_download_pdf:
-        download_to_system_download_floder = [0,[]]
-        success = 0
-        for i in tqdm(range(len(datass)),desc='Downloading...'):
-            title = datass[i][0].replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
-            pdf_link = datass[i][2]
-            if pdf_link != '':
-                if pdf_link.endswith('.pdf'):
-                    pdf_name = title + '.pdf'
-                    pdf_path = os.path.join(save_path, pdf_name)
-                    response = requests.get(pdf_link)
-                    with open(pdf_path, 'wb') as f:
-                        f.write(response.content)
-                    if os.path.getsize(pdf_path)/1024 > 35:
-                        datass[i][-1] = 1
-                        success += 1
-                else:
-                    try:
-                        driver.get(pdf_link)
-                        items = driver.find_elements(By.TAG_NAME, 'iframe')
-                        if items:
-                            # pdf_frame_id = items[0].get_attribute('id')
-                            driver.switch_to.frame(0)
-                            download_btn = driver.find_element(By.ID,'download')
-                            download_btn.click()
-                            download_to_system_download_floder[0]+=1
-                            download_to_system_download_floder[1].append(pdf_name)
-                            datass[i][-1] = 2
-                            driver.switch_to.default_content()
-                    except:
-                        pass
-            else:
-                url ='https://wellesu.com/'
-                driver.get(url)
-                search_text_box = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="request"]')))
-                search_text_box.send_keys(title)
-                search_btn = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="enter"]/button')))
-                search_btn.click()
-                try:
-                    btn_download = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="buttons"]/button[2]')))
-                    download_link = btn_download.get_attribute('onclick')[15:-15].replace('\\', '')
-                    title = title.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
-                    pdf_name = title + '.pdf'
-                    pdf_path = os.path.join(save_path, pdf_name)
-                    response = requests.get(download_link)
-                    with open(pdf_path, 'wb') as f:
-                        f.write(response.content)
-                    if os.path.getsize(pdf_path)/1024 > 35:
-                        datass[i][2] = download_link
-                        datass[i][-1] = 1
-                        success += 1
-                except:
-                    pass
-                finally:
-                    driver.get(url)
-                    search_text_box = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="request"]')))
-                
-        print(f'{success} papers are downloaded to {save_path}')
-        print(f'{download_to_system_download_floder[0]} papers are downloaded to system download floder')
-    
-        with open(f'./{paper_namex}_full_report.csv','w') as f:
-            f.write('title,title_link,pdf_link,save_path\n')
-            f.write(',,,,for save_path 1-download path set in code 2-system default download path\n')
-            for item in datass:
-                f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]}\n')
-
     driver.quit()
-    print(f'Find cite paper {len(datass)} , Download {success + download_to_system_download_floder[0]}' )
+    print(f'Find cite paper {len(datass)}' )
     print('Every thing done!')
     
 
