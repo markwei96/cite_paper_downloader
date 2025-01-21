@@ -89,40 +89,28 @@ if __name__ == '__main__':
     soup = BeautifulSoup(res.text, "html.parser")
     divs_with_gs_or = soup.find_all("div", class_="gs_or")
 
-    find_mark = False
     cited_by_link = ''
     for div in divs_with_gs_or:
         tag = div.find_all('div')
-        pdf_link,title,title_link,paper_id = '','','',''
         for xx in tag:
                 class_names = xx.get('class')
                 if class_names:
-                    if class_names[0] == 'gs_or_ggsm':
-                        pdf_link = xx.find('a').get('href')
-                    elif class_names[0] == 'gs_ri':
+                    if class_names[0] == 'gs_ri':
                         h3_box = xx.find('h3')
                         a_box = h3_box.find('a')
                         if a_box:
                             title = a_box.get_text()
-                            title_link = a_box.get('href')
-                            paper_id = a_box.get('id')
                         else:
                             sp_box = h3_box.find_all('span')
                             title = sp_box[-1].get_text()
-                            paper_id = sp_box[-1].get('id')
                     elif class_names[0] == 'gs_fl':
                         a_boxs = xx.find_all('a')
                         for a_box in a_boxs:
                             if a_box.get_text().startswith('Cited by'):
                                 cited_by_link = a_box.get('href')
                                 break
-                    if title == paper_name:
-                        find_mark = True
-                        break
-        if find_mark:
+        if title == paper_name:
             break
-
-    print(cited_by_link)
     
     url = f"https://scholar.google.com{cited_by_link}"
 
@@ -233,81 +221,4 @@ if __name__ == '__main__':
                 else:
                     get_count[pp[0]] +=1
 
-    # download_to_system_download_floder = [0,[]]
-    # success = 0
-    # if is_download_pdf:
-    #     download_to_system_download_floder = [0,[]]
-    #     success = 0
-    #     for i in tqdm(range(len(datass)),desc='Downloading...'):
-    #         title = datass[i][0].replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
-    #         pdf_link = datass[i][3]
-    #         if pdf_link != '':
-    #             if pdf_link.endswith('.pdf'):
-    #                 pdf_name = title + '.pdf'
-    #                 pdf_path = os.path.join(save_path, pdf_name)
-    #                 response = requests.get(pdf_link)
-    #                 with open(pdf_path, 'wb') as f:
-    #                     f.write(response.content)
-    #                 if os.path.getsize(pdf_path)/1024 > 35:
-    #                     datass[i][-1] = 1
-    #                     success += 1
-    #             else:
-    #                 try:
-    #                     driver.get(pdf_link)
-    #                     items = driver.find_elements(By.TAG_NAME, 'iframe')
-    #                     if items:
-    #                         # pdf_frame_id = items[0].get_attribute('id')
-    #                         driver.switch_to.frame(0)
-    #                         download_btn = driver.find_element(By.ID,'download')
-    #                         download_btn.click()
-    #                         download_to_system_download_floder[0]+=1
-    #                         download_to_system_download_floder[1].append(pdf_name)
-    #                         datass[i][-1] = 2
-    #                         driver.switch_to.default_content()
-    #                 except:
-    #                     pass
-    #         else:
-    #             url ='https://wellesu.com/'
-    #             driver.get(url)
-    #             search_text_box = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="request"]')))
-    #             search_text_box.send_keys(title)
-    #             search_btn = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="enter"]/button')))
-    #             search_btn.click()
-    #             try:
-    #                 btn_download = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="buttons"]/button[2]')))
-    #                 download_link = btn_download.get_attribute('onclick')[15:-15].replace('\\', '')
-    #                 title = title.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
-    #                 pdf_name = title + '.pdf'
-    #                 pdf_path = os.path.join(save_path, pdf_name)
-    #                 response = requests.get(download_link)
-    #                 with open(pdf_path, 'wb') as f:
-    #                     f.write(response.content)
-    #                 if os.path.getsize(pdf_path)/1024 > 35:
-    #                     datass[i][3] = download_link
-    #                     datass[i][-1] = 1
-    #                     success += 1
-    #             except:
-    #                 pass
-    #             finally:
-    #                 driver.get(url)
-    #                 search_text_box = WebDriverWait(driver, max_wait).until(EC.presence_of_element_located((By.XPATH, '//*[@id="request"]')))
-                
-    #     print(f'{success} papers are downloaded to {save_path}')
-    #     print(f'{download_to_system_download_floder[0]} papers are downloaded to system download floder')
-    
-    #     with open(f'./{paper_namex}_full_report.csv','w') as f:
-    #         f.write('title,title_link,pdf_link,save_path\n')
-    #         f.write(',,,,for save_path 1-download path set in code 2-system default download path\n')
-    #         for item in datass:
-    #             f.write(f'{item[0].replace(',','_')},{item[1]},{item[2]},{item[3]}\n')
-
-    # driver.quit()
-    # print(f'Find cite paper {len(datass)} , Download {success + download_to_system_download_floder[0]}' )
     print('Every thing done!')
-    
-
-    
-
-
-
-    
