@@ -191,9 +191,9 @@ def safe_bot_request_proxy(url,is_debug=False):
             if len(bot_check) == 0:
                 return res
         bot_count+=1
-        waitTime = random.randint(2,5)*10
-        print(f'find bot verify , wait for {waitTime} s')
-        time.sleep(waitTime)
-        if bot_count > 10:
-            print("Error with loading web page")
-            raise ValueError("Webpage Error, for most reason maybe banned by google!")
+        # waitTime = random.randint(2,5)*10
+        # print(f'find bot verify , wait for {waitTime} s')
+        # time.sleep(waitTime)
+        # if bot_count > 10:
+        #     print("Error with loading web page")
+        #     raise ValueError("Webpage Error, for most reason maybe banned by google!")
