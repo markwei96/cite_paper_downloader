@@ -30,8 +30,8 @@ def get_random_ua():
     return random.choice(user_agents)
 
 def setWebDriver(save_path):
-    service=Service('./web_driver/msedgedriver.exe')
-    options = webdriver.EdgeOptions()
+    service=Service(ChromeDriverManager().install())
+    options = webdriver.ChromeOptions()
     prefs = {
         "download.default_directory": save_path,
         "download.prompt_for_download": False,
@@ -57,7 +57,7 @@ def setWebDriver(save_path):
     options.add_experimental_option("prefs", prefs)
     options.add_argument('--ignore-certificate-errors')
 
-    driver=webdriver.Edge(options=options,service=service)
+    driver=webdriver.Chrome(options=options,service=service)
     driver.set_window_size(width=800,height=1000)
     return driver
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     is_download_pdf = args.is_download_pdf
 
     paper_namex = paper_name.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').replace(' ', '_')
-    save_path = f'{base_dir}/{paper_namex}'
+    save_path = f"{base_dir}/{paper_namex}"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     cite_btns = driver.find_elements(By.CLASS_NAME,'gs_or_cit')
     datass = []
 
-    file = open(f'./{paper_namex}_full_report.csv','w',encoding='utf-8',errors='ignore')
+    file = open(f"./{paper_namex}_full_report.csv",'w',encoding='utf-8',errors='ignore')
     file.write('title,authors,title_link,pdf_link,save_path\n')
     file.write(',,,,for save_path 0-not download 1-download path set in code 2-system default download path\n')
     file.close()
@@ -181,14 +181,14 @@ if __name__ == '__main__':
                 
                 datass.append([title,[],title_link, pdf_link,0])
                 with open(f'./{paper_namex}_full_report.csv','a',encoding='utf-8',errors='ignore') as f:
-                    tex = f'{title.replace(',','_')},,{title_link},{pdf_link},0'
-                    f.write(f'{tex}\n')
+                    tex = f"{title.replace(',','_')},,{title_link},{pdf_link},0"
+                    f.write(f"{tex}\n")
                 with open(f'./{paper_namex}_authors_infos.csv','a',encoding='utf-8',errors='ignore') as f:
-                    f.write(f'{title};{paper_id};{page};{i}\n')
+                    f.write(f"{title};{paper_id};{page};{i}\n")
                 if is_debug:
                     print(tex)
                     with open('./debug.txt','a',errors='ignore') as f:
-                        f.write(f'{title};{paper_id};{page};{i}\n')
+                        f.write(f"{title};{paper_id};{page};{i}\n")
                 # time.sleep(random.randint(1, 5))
                 
             if btn_next.get_attribute("disabled") == None:
