@@ -5,6 +5,7 @@
 - Find all articles that have cited your article
 - Get links to all articles and PDF download links (if available)
 - Get the author names of all articles
+- Get the author's personal links, positions, citation counts, and the number of publications in Nature, Science, and PNAS journals
 
 ## How to use
 
@@ -18,9 +19,6 @@ For simply start:
 
  `python ./get_cite_papers.py --paper_name 'Your Paper Name'`
 
-Paper info will save in `./{paper_name}_full_report.csv`
-
-Authors info will save in `./{paper_name}_authors.csv`
 
 | args |  | desc |
 |-------|-------|-------|
@@ -31,4 +29,12 @@ Authors info will save in `./{paper_name}_authors.csv`
 | -m | --max_wait | Max Waitting Time |
 | -b | --debug | Debug mode |
 
+## Outputs
 
+ File will save in path: `./Your_Paper_Name/`
+
+
+- **authors_full_info.csv**: This file contains detailed information about the authors, including their names, positions, personal links, citation counts, and the number of publications in Nature, Science, and PNAS journals.
+- **authors_nature_list.csv, pnas, science**: These files are used to verify the authenticity of publications in high-impact journals. For example, journals like Nature Communications might be mistakenly categorized as Nature. These files help identify and correct such misclassifications.
+- **authors.csv**: This file lists the authors of each cited paper.
+- **full_report.csv**: This file contains the names of all the cited papers.
